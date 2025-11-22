@@ -14,8 +14,12 @@ import {
   XCircle,
   Folder,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Info,
   Cog,
+  Lightbulb,
+  Sparkles,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -43,6 +47,7 @@ import {
 } from "@/components/ui/resizable";
 import ArchitectureDiagram from "@/components/ArchitectureDiagram";
 import InitialLandingPage from "@/components/initial-landing-page";
+import QuizInterface from "@/components/quiz-interface";
 
 export default function Home() {
   const [inputValue, setInputValue] = useState("");
@@ -85,6 +90,7 @@ export default function Home() {
   const [isProjectComplete, setIsProjectComplete] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [showCongratulations, setShowCongratulations] = useState(false);
+  const [showAllSteps, setShowAllSteps] = useState(false);
 
   // Use projectFiles if available, otherwise fall back to architectureData
   const pythonFiles =
@@ -158,12 +164,13 @@ export default function Home() {
         // Build project state
         const projectFiles =
           architectureData?.architecture_item?.map((item: any) => ({
-            name: item.file,
+            file: item.file,
             content: item.starter_code,
             purpose: item.purpose,
           })) || [];
 
         const projectState = {
+          idea: submittedMessage,
           user_prompt: submittedMessage,
           files: projectFiles,
           current_step: currentQuestionIndex + 1,
@@ -249,6 +256,7 @@ export default function Home() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
+            idea: message,
             user_prompt: message,
             user_level: userLevel,
             allow_database: allowDatabase,
@@ -300,6 +308,7 @@ export default function Home() {
     try {
       // Build project state
       const projectState = {
+        idea: submittedMessage,
         user_prompt: submittedMessage,
         files:
           projectFiles.length > 0
@@ -637,10 +646,35 @@ export default function Home() {
     }
   };
 
+  // Calculate progress value for the bar
+  const totalStepsCount = Math.max(developmentSteps.length, 1);
+  const questionsCount = Math.max(questions.length, 1);
+  let progressValue = 0;
+
+  if (quizAccepted) {
+    if (!codeTabEnabled) {
+      // Quiz Phase: 5% to 20%
+      progressValue = 5 + (currentQuestionIndex / questionsCount) * 15;
+    } else {
+      // Development Phase: 20% to 100%
+      progressValue = 20 + (currentStep / totalStepsCount) * 80;
+    }
+  } else if (messageSent) {
+    progressValue = 2;
+  }
+
+  // Cap at 100
+  progressValue = Math.min(100, Math.max(0, progressValue));
+
   if (messageSent && showNewScreen && architectureData) {
     return (
-      <div className="flex h-screen flex-col bg-[#faf9f6] font-sans overflow-hidden">
-        <header className="flex items-center justify-between px-6 py-4 border-b border-gray-200 shrink-0">
+      <div className="flex h-screen flex-col bg-[#faf9f6] font-sans overflow-hidden relative">
+        {/* Background Blobs */}
+        <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[50%] rounded-full bg-indigo-500/20 blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[50%] rounded-full bg-rose-500/20 blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-[-20%] left-[20%] right-[20%] h-[50%] rounded-full bg-orange-500/20 blur-[120px] pointer-events-none" />
+
+        <header className="flex items-center justify-between px-6 py-4 border-b border-gray-200 shrink-0 relative z-10 bg-white/50 backdrop-blur-sm">
           <div className="text-xl font-semibold text-gray-900">CodeStep</div>
           {showCongratulations && (
             <Button
@@ -654,30 +688,92 @@ export default function Home() {
         </header>
 
         <main
-          className={`flex-1 min-h-0 transition-opacity duration-500 ease-out ${
+          className={`flex-1 min-h-0 transition-opacity duration-500 ease-out relative z-10 ${
             showNewScreen ? "opacity-100" : "opacity-0"
           }`}
         >
           <ResizablePanelGroup direction="horizontal" className="h-full">
-            <ResizablePanel defaultSize={50} minSize={30}>
-              <div className="flex flex-col h-full bg-white overflow-hidden">
+            <ResizablePanel defaultSize={40} minSize={30}>
+              <div className="flex flex-col h-full bg-white/60 backdrop-blur-sm overflow-hidden">
                 <div className="px-6 pt-6 pb-4 shrink-0">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-600">
-                      Idea
-                    </span>
-                    <span className="text-sm font-medium text-gray-600">
-                      Ready app
-                    </span>
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`p-1.5 rounded-md transition-colors ${
+                          progressValue > 0
+                            ? "bg-indigo-100 text-indigo-600"
+                            : "bg-gray-100 text-gray-400"
+                        }`}
+                      >
+                        <Lightbulb size={14} />
+                      </div>
+                      <span className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                        Idea
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`text-xs font-bold uppercase tracking-wider transition-colors ${
+                          isProjectComplete ? "text-gray-500" : "text-gray-400"
+                        }`}
+                      >
+                        App
+                      </span>
+                      <div
+                        className={`p-1.5 rounded-md transition-colors ${
+                          isProjectComplete
+                            ? "bg-green-100 text-green-600"
+                            : "bg-gray-100 text-gray-400"
+                        }`}
+                      >
+                        <Rocket size={14} />
+                      </div>
+                    </div>
                   </div>
-                  <Progress
-                    value={
-                      !quizAccepted
-                        ? 0
-                        : ((1 + currentQuestionIndex + 1) / 6) * 100
-                    }
-                    className="h-2"
-                  />
+
+                  <div className="relative h-3 w-full bg-gray-100 rounded-full overflow-hidden shadow-inner ring-1 ring-gray-200/50">
+                    <motion.div
+                      className="absolute top-0 left-0 h-full bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${progressValue}%` }}
+                      transition={{
+                        type: "spring",
+                        damping: 20,
+                        stiffness: 100,
+                      }}
+                    >
+                      <div
+                        className="absolute inset-0 bg-white/20"
+                        style={{
+                          backgroundImage:
+                            "linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent)",
+                          backgroundSize: "1rem 1rem",
+                        }}
+                      />
+                      <motion.div
+                        className="absolute top-0 right-0 h-full w-0.5 bg-white/60 shadow-[0_0_10px_2px_rgba(255,255,255,0.5)]"
+                        animate={{ opacity: [0.4, 1, 0.4] }}
+                        transition={{ duration: 1.5, repeat: Infinity }}
+                      />
+                    </motion.div>
+                  </div>
+
+                  <div className="mt-2 flex justify-between items-center">
+                    <span className="text-[10px] font-medium text-gray-400">
+                      {Math.round(progressValue)}% complete
+                    </span>
+                    {progressValue >= 100 && (
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="flex items-center gap-1 text-[10px] font-bold text-green-600 uppercase tracking-wider"
+                      >
+                        <Sparkles size={10} />
+                        Done
+                      </motion.div>
+                    )}
+                  </div>
                 </div>
                 <div className="flex-1 flex flex-col overflow-hidden">
                   <div
@@ -730,34 +826,402 @@ export default function Home() {
                           </Button>
                         </motion.div>
                       ) : !architectureData ||
-                        isGeneratingArchitecture ? null : !quizAccepted ? (
-                        <motion.div
-                          key="quiz"
-                          initial={{ opacity: 0, x: -100 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: 100 }}
-                          transition={{ duration: 0.5 }}
-                          className="text-center"
-                        >
-                          <CheckCircle2
-                            className="text-green-600 mx-auto mb-6"
-                            size={64}
-                          />
-                          <h1 className="text-3xl font-semibold text-gray-900 mb-4">
-                            Architecture Generated
-                          </h1>
-                          <p className="text-base text-gray-600 mb-8 max-w-lg mx-auto">
-                            We'll make you a quiz about it to ensure you
-                            understand the structure before we start coding.
-                          </p>
-                          <Button
-                            onClick={() => setQuizAccepted(true)}
-                            size="lg"
-                            className="bg-black text-white hover:bg-gray-800 w-48"
+                        isGeneratingArchitecture ? null : showNextStep ? (
+                        <div className="w-full max-w-3xl mx-auto text-left flex flex-col h-full">
+                          <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="flex-1 space-y-6"
                           >
-                            Start the Quiz
-                          </Button>
-                        </motion.div>
+                            <div className="flex flex-col gap-4 border-b border-gray-100 pb-6">
+                              <div className="flex items-center justify-between">
+                                <span className="px-3 py-1 rounded-full bg-black text-white text-xs font-semibold tracking-wide uppercase">
+                                  Step{" "}
+                                  {nextStepData
+                                    ? nextStepData.step_number
+                                    : currentStep + 1}
+                                </span>
+                                {isLoadingNextStep || !nextStepData ? (
+                                  <div className="flex items-center gap-2 text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-md">
+                                    <Loader2
+                                      size={12}
+                                      className="animate-spin"
+                                    />
+                                    Generating Code...
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-2 text-xs font-medium text-green-700 bg-green-50 px-2 py-1 rounded-md border border-green-100">
+                                    <CheckCircle2 size={12} />
+                                    Code Ready
+                                  </div>
+                                )}
+                              </div>
+                              <h1 className="text-3xl font-bold text-gray-900 leading-tight">
+                                {nextStepData
+                                  ? developmentSteps.find(
+                                      (s: any) =>
+                                        s.step === nextStepData.step_number
+                                    )?.title || "Next step"
+                                  : developmentSteps.find(
+                                      (s: any) => s.step === currentStep + 1
+                                    )?.title || "Next step"}
+                              </h1>
+                            </div>
+
+                            {isLoadingNextStep && !nextStepData ? (
+                              <div className="w-full">
+                                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                                  <span className="w-2 h-2 rounded-full bg-black animate-pulse" />
+                                  Generating code...
+                                </h2>
+                                <div className="space-y-3 max-w-2xl">
+                                  <Skeleton className="h-4 w-full" />
+                                  <Skeleton className="h-4 w-[90%]" />
+                                  <Skeleton className="h-4 w-[95%]" />
+                                </div>
+                              </div>
+                            ) : nextStepData ? (
+                              <div className="w-full space-y-6">
+                                {nextStepData.explanation && (
+                                  <div className="space-y-3">
+                                    <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                                      What we're doing
+                                    </h2>
+                                    <div
+                                      className="text-base text-gray-700 leading-relaxed prose prose-sm max-w-none"
+                                      dangerouslySetInnerHTML={{
+                                        __html: nextStepData.explanation
+                                          .replace(
+                                            /`([^`]+)`/g,
+                                            '<code class="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono text-gray-800 border border-gray-200">$1</code>'
+                                          )
+                                          .replace(/\n/g, "<br />"),
+                                      }}
+                                    />
+                                  </div>
+                                )}
+
+                                {nextStepData.file_changes &&
+                                  nextStepData.file_changes.length > 0 && (
+                                    <div className="space-y-4">
+                                      <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                                        Files Changed
+                                      </h2>
+                                      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                                        <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
+                                          <h3 className="font-medium text-xs uppercase tracking-wider text-gray-500">
+                                            File System
+                                          </h3>
+                                          <span className="text-xs font-medium text-gray-400">
+                                            {nextStepData.file_changes.length}{" "}
+                                            files
+                                          </span>
+                                        </div>
+                                        <div className="divide-y divide-gray-100">
+                                          {nextStepData.file_changes.map(
+                                            (change: any, idx: number) => {
+                                              const originalFiles =
+                                                projectFiles.length > 0
+                                                  ? projectFiles
+                                                  : architectureData.architecture_item.map(
+                                                      (item: any) => ({
+                                                        name: item.file,
+                                                        content:
+                                                          item.starter_code,
+                                                      })
+                                                    );
+                                              const originalFile =
+                                                originalFiles.find(
+                                                  (f: any) =>
+                                                    f.name === change.file
+                                                );
+                                              const originalContent =
+                                                originalFile?.content || "";
+                                              const originalLines =
+                                                originalContent.split(
+                                                  "\n"
+                                                ).length;
+                                              const newLines =
+                                                change.content.split(
+                                                  "\n"
+                                                ).length;
+
+                                              let addedLines = 0;
+                                              let removedLines = 0;
+
+                                              if (
+                                                change.change_type === "replace"
+                                              ) {
+                                                addedLines = newLines;
+                                                removedLines = originalLines;
+                                              } else if (
+                                                change.change_type === "append"
+                                              ) {
+                                                addedLines = newLines;
+                                                removedLines = 0;
+                                              } else if (
+                                                change.change_type ===
+                                                  "insert" ||
+                                                change.change_type ===
+                                                  "insert_after" ||
+                                                change.change_type ===
+                                                  "insert_before"
+                                              ) {
+                                                addedLines = newLines;
+                                                removedLines = 0;
+                                              }
+
+                                              const isNewFile = !originalFile;
+                                              let changeLabel = "Update";
+                                              let changeColorClass =
+                                                "bg-blue-50 text-blue-700 border-blue-200";
+
+                                              if (isNewFile) {
+                                                changeLabel = "New File";
+                                                changeColorClass =
+                                                  "bg-emerald-50 text-emerald-700 border-emerald-200";
+                                              } else {
+                                                switch (change.change_type) {
+                                                  case "replace":
+                                                    changeLabel = "Rewrite";
+                                                    changeColorClass =
+                                                      "bg-amber-50 text-amber-700 border-amber-200";
+                                                    break;
+                                                  case "append":
+                                                    changeLabel = "Append";
+                                                    changeColorClass =
+                                                      "bg-violet-50 text-violet-700 border-violet-200";
+                                                    break;
+                                                  default: // insert, insert_after, insert_before
+                                                    changeLabel = "Update";
+                                                    changeColorClass =
+                                                      "bg-blue-50 text-blue-700 border-blue-200";
+                                                }
+                                              }
+
+                                              return (
+                                                <div
+                                                  key={idx}
+                                                  className="group flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer"
+                                                  onClick={() => {
+                                                    setSelectedFile(
+                                                      change.file
+                                                    );
+                                                    setActiveTab("code");
+                                                  }}
+                                                >
+                                                  <div className="flex items-center gap-3 min-w-0">
+                                                    <FileCode
+                                                      size={16}
+                                                      className="text-gray-400 group-hover:text-blue-600 transition-colors shrink-0"
+                                                    />
+                                                    <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900 font-mono truncate">
+                                                      {change.file}
+                                                    </span>
+                                                    <span
+                                                      className={`text-[10px] font-medium px-1.5 py-0.5 rounded border capitalize ${changeColorClass}`}
+                                                    >
+                                                      {changeLabel}
+                                                    </span>
+                                                  </div>
+                                                  <div className="flex items-center gap-3 text-xs font-medium pl-4 shrink-0">
+                                                    <div className="flex items-center gap-2">
+                                                      {addedLines > 0 && (
+                                                        <span className="text-green-600">
+                                                          +{addedLines}
+                                                        </span>
+                                                      )}
+                                                      {removedLines > 0 && (
+                                                        <span className="text-red-600">
+                                                          -{removedLines}
+                                                        </span>
+                                                      )}
+                                                    </div>
+                                                    <ChevronRight
+                                                      size={14}
+                                                      className="text-gray-300 group-hover:text-gray-500 transition-colors"
+                                                    />
+                                                  </div>
+                                                </div>
+                                              );
+                                            }
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                              </div>
+                            ) : null}
+                          </motion.div>
+                        </div>
+                      ) : codeTabEnabled ? (
+                        <div className="w-full max-w-3xl mx-auto text-left">
+                          <div className="flex items-center justify-between mb-6">
+                            <h1 className="text-3xl font-semibold text-gray-900">
+                              Development Steps
+                            </h1>
+                            {isProjectComplete && (
+                              <Button
+                                size="sm"
+                                className="bg-green-600 text-white hover:bg-green-700"
+                                onClick={() => setShowCongratulations(true)}
+                              >
+                                <FileCode size={16} className="mr-2" />
+                                Export
+                              </Button>
+                            )}
+                          </div>
+                          <div className="relative pl-8 space-y-8 before:absolute before:left-3.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-gray-100">
+                            {developmentSteps.map(
+                              (step: any, index: number) => {
+                                // Identify the current active step index (first uncompleted step)
+                                const activeStepIndex =
+                                  developmentSteps.findIndex(
+                                    (s: any) => !s.completed
+                                  );
+                                const safeActiveIndex =
+                                  activeStepIndex === -1
+                                    ? developmentSteps.length - 1
+                                    : activeStepIndex;
+
+                                const isCurrent = index === safeActiveIndex;
+
+                                // Find index of current step for collapsing logic
+                                const currentIndex = developmentSteps.findIndex(
+                                  (s: any) =>
+                                    !s.completed &&
+                                    (s.step === 0 ||
+                                      developmentSteps.find(
+                                        (p: any) => p.step === s.step - 1
+                                      )?.completed)
+                                );
+                                const activeIndex =
+                                  currentIndex === -1
+                                    ? developmentSteps.length - 1
+                                    : currentIndex;
+
+                                // Hide steps if they are more than 1 step behind current and showAllSteps is false
+                                const shouldHide =
+                                  !showAllSteps && index < activeIndex - 1;
+
+                                if (shouldHide) {
+                                  // Only render the toggle button once, at the position of the first hidden step
+                                  if (index === 0) {
+                                    const hiddenCount = activeIndex - 1;
+                                    return (
+                                      <div
+                                        key="hidden-steps-toggle"
+                                        className="relative"
+                                      >
+                                        <div className="absolute -left-[34px] w-8 h-8 rounded-full border-4 border-gray-50 bg-white flex items-center justify-center z-10">
+                                          <div className="w-1 h-1 rounded-full bg-gray-300" />
+                                        </div>
+                                        <button
+                                          onClick={() => setShowAllSteps(true)}
+                                          className="w-full p-3 rounded-xl border border-dashed border-gray-300 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors flex items-center justify-center gap-2"
+                                        >
+                                          <ChevronDown size={14} />
+                                          Show {hiddenCount} previous steps
+                                        </button>
+                                      </div>
+                                    );
+                                  }
+                                  return null;
+                                }
+
+                                return (
+                                  <div key={step.step} className="relative">
+                                    <div
+                                      className={`absolute -left-[34px] w-8 h-8 rounded-full border-4 flex items-center justify-center z-10 bg-white transition-colors ${
+                                        step.completed
+                                          ? "border-green-100"
+                                          : isCurrent
+                                          ? "border-indigo-100"
+                                          : "border-gray-50"
+                                      }`}
+                                    >
+                                      <div
+                                        className={`w-2.5 h-2.5 rounded-full transition-colors ${
+                                          step.completed
+                                            ? "bg-green-500"
+                                            : isCurrent
+                                            ? "bg-indigo-500 animate-pulse"
+                                            : "bg-gray-300"
+                                        }`}
+                                      />
+                                    </div>
+
+                                    <div
+                                      className={`rounded-xl border transition-all ${
+                                        step.completed
+                                          ? "bg-white border-gray-200/60 opacity-70 hover:opacity-100 p-3"
+                                          : isCurrent
+                                          ? "bg-white border-indigo-200 shadow-sm ring-4 ring-indigo-50/50 p-5"
+                                          : "bg-gray-50/50 border-gray-200/60 opacity-60 p-3"
+                                      }`}
+                                    >
+                                      <div className="flex items-start justify-between">
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <span
+                                              className={`text-xs font-bold uppercase tracking-wider ${
+                                                step.completed
+                                                  ? "text-green-600"
+                                                  : isCurrent
+                                                  ? "text-indigo-600"
+                                                  : "text-gray-400"
+                                              }`}
+                                            >
+                                              {step.step === 0
+                                                ? "Preparation"
+                                                : `Step ${step.step}`}
+                                            </span>
+                                            {step.completed && (
+                                              <div className="flex items-center gap-1 text-green-600 bg-green-50 px-2 py-0.5 rounded text-[10px] font-medium">
+                                                <CheckCircle2 size={10} />
+                                                Done
+                                              </div>
+                                            )}
+                                          </div>
+
+                                          <h3
+                                            className={`text-base font-bold ${
+                                              step.completed
+                                                ? "text-gray-700 truncate"
+                                                : isCurrent
+                                                ? "text-gray-900 mb-2"
+                                                : "text-gray-500 truncate"
+                                            }`}
+                                          >
+                                            {step.title}
+                                          </h3>
+
+                                          {isCurrent && (
+                                            <p className="text-sm leading-relaxed text-gray-600">
+                                              {step.goal}
+                                            </p>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              }
+                            )}
+                            {showAllSteps && (
+                              <div className="relative">
+                                <div className="absolute -left-[34px] w-8 h-8 flex items-center justify-center"></div>
+                                <button
+                                  onClick={() => setShowAllSteps(false)}
+                                  className="w-full p-2 text-xs text-gray-400 hover:text-gray-600 transition-colors flex items-center justify-center gap-1"
+                                >
+                                  <ChevronUp size={12} />
+                                  Hide previous steps
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       ) : (
                         <motion.div
                           key={`question-${currentQuestionIndex}`}
@@ -765,362 +1229,29 @@ export default function Home() {
                           animate={{ opacity: 1, x: 0 }}
                           exit={{ opacity: 0, x: 100 }}
                           transition={{ duration: 0.5 }}
-                          className="text-center"
+                          className="w-full h-full flex flex-col"
                         >
-                          {questions.length > 0 &&
-                            currentQuestionIndex < questions.length && (
-                              <>
-                                {isLoading ? (
-                                  <motion.div
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    className="flex flex-col items-center gap-3 text-gray-600"
-                                  >
-                                    <Loader2
-                                      size={32}
-                                      className="animate-spin"
-                                    />
-                                    <span className="text-base">
-                                      Checking your answer...
-                                    </span>
-                                  </motion.div>
-                                ) : showFeedback && evaluationResult ? (
-                                  <motion.div
-                                    initial={{ opacity: 0, scale: 0.95 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    transition={{ delay: 0.2 }}
-                                    className="text-center"
-                                  >
-                                    {evaluationResult.understood ? (
-                                      <>
-                                        <CheckCircle2
-                                          className="text-green-600 mx-auto mb-4"
-                                          size={48}
-                                        />
-                                        <h1 className="text-4xl font-semibold text-green-900 mb-4">
-                                          Correct answer
-                                        </h1>
-                                        <h2 className="text-2xl font-medium text-gray-700 mb-6">
-                                          Score: {evaluationResult.score}/100
-                                        </h2>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <XCircle
-                                          className="text-red-600 mx-auto mb-4"
-                                          size={48}
-                                        />
-                                        <h1 className="text-4xl font-semibold text-red-900 mb-4">
-                                          Incorrect answer
-                                        </h1>
-                                        <h2 className="text-2xl font-medium text-gray-700 mb-6">
-                                          Score: {evaluationResult.score}/100
-                                        </h2>
-                                        {evaluationResult.hints && (
-                                          <div className="mt-6 p-6 bg-yellow-50 border-2 border-yellow-300 rounded-lg max-w-3xl mx-auto">
-                                            <p className="text-lg font-semibold text-yellow-900 mb-3">
-                                              Hints:
-                                            </p>
-                                            {Array.isArray(
-                                              evaluationResult.hints
-                                            ) ? (
-                                              <ul className="list-disc list-inside space-y-2 text-base text-yellow-800">
-                                                {evaluationResult.hints.map(
-                                                  (hint, idx) => (
-                                                    <li key={idx}>{hint}</li>
-                                                  )
-                                                )}
-                                              </ul>
-                                            ) : (
-                                              <p className="text-base text-yellow-800">
-                                                {evaluationResult.hints}
-                                              </p>
-                                            )}
-                                          </div>
-                                        )}
-                                        <Button
-                                          onClick={() => {
-                                            setShowFeedback(false);
-                                            setEvaluationResult(null);
-                                            setInputValue("");
-                                          }}
-                                          size="lg"
-                                          className="mt-8 bg-gray-900 text-white hover:bg-gray-800 w-64 h-12 text-lg"
-                                        >
-                                          Try Again
-                                        </Button>
-                                      </>
-                                    )}
-                                  </motion.div>
-                                ) : showNextStep ? (
-                                  <div className="w-full max-w-3xl mx-auto text-left flex flex-col h-full">
-                                    <motion.div
-                                      initial={{ opacity: 0, y: 20 }}
-                                      animate={{ opacity: 1, y: 0 }}
-                                      className="flex-1 space-y-6"
-                                    >
-                                      <div className="flex items-center gap-3">
-                                        {isLoadingNextStep || !nextStepData ? (
-                                          <Cog
-                                            className="text-gray-700 animate-spin"
-                                            size={24}
-                                          />
-                                        ) : (
-                                          <CheckCircle2
-                                            className="text-green-600"
-                                            size={24}
-                                          />
-                                        )}
-                                        <h1 className="text-3xl font-semibold text-gray-900">
-                                          {nextStepData ? (
-                                            <>
-                                              Step {nextStepData.step_number}:{" "}
-                                              {developmentSteps.find(
-                                                (s: any) =>
-                                                  s.step ===
-                                                  nextStepData.step_number
-                                              )?.title || "Next step"}
-                                            </>
-                                          ) : (
-                                            <>
-                                              Step {currentStep + 1}:{" "}
-                                              {developmentSteps.find(
-                                                (s: any) =>
-                                                  s.step === currentStep + 1
-                                              )?.title || "Next step"}
-                                            </>
-                                          )}
-                                        </h1>
-                                      </div>
-
-                                      {isLoadingNextStep && !nextStepData ? (
-                                        <div>
-                                          <h2 className="text-lg font-semibold text-gray-900 mb-2">
-                                            What we're adding:
-                                          </h2>
-                                          <div className="space-y-2">
-                                            <Skeleton className="h-4 w-full" />
-                                            <Skeleton className="h-4 w-full" />
-                                            <Skeleton className="h-4 w-3/4" />
-                                          </div>
-                                        </div>
-                                      ) : nextStepData ? (
-                                        <>
-                                          {nextStepData.explanation && (
-                                            <div>
-                                              <h2 className="text-lg font-semibold text-gray-900 mb-2">
-                                                What we're adding:
-                                              </h2>
-                                              <div
-                                                className="text-base text-gray-700 prose prose-sm max-w-none"
-                                                dangerouslySetInnerHTML={{
-                                                  __html:
-                                                    nextStepData.explanation
-                                                      .replace(
-                                                        /`([^`]+)`/g,
-                                                        '<code class="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono text-gray-800">$1</code>'
-                                                      )
-                                                      .replace(/\n/g, "<br />"),
-                                                }}
-                                              />
-                                            </div>
-                                          )}
-
-                                          {nextStepData.file_changes &&
-                                            nextStepData.file_changes.length >
-                                              0 && (
-                                              <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                                                <h2 className="text-lg font-semibold text-gray-900 mb-2">
-                                                  Files Changed:
-                                                </h2>
-                                                <div className="space-y-1">
-                                                  {nextStepData.file_changes.map(
-                                                    (
-                                                      change: any,
-                                                      idx: number
-                                                    ) => {
-                                                      const originalFiles =
-                                                        projectFiles.length > 0
-                                                          ? projectFiles
-                                                          : architectureData.architecture_item.map(
-                                                              (item: any) => ({
-                                                                name: item.file,
-                                                                content:
-                                                                  item.starter_code,
-                                                              })
-                                                            );
-                                                      const originalFile =
-                                                        originalFiles.find(
-                                                          (f: any) =>
-                                                            f.name ===
-                                                            change.file
-                                                        );
-                                                      const originalContent =
-                                                        originalFile?.content ||
-                                                        "";
-                                                      const originalLines =
-                                                        originalContent.split(
-                                                          "\n"
-                                                        ).length;
-                                                      const newLines =
-                                                        change.content.split(
-                                                          "\n"
-                                                        ).length;
-
-                                                      let addedLines = 0;
-                                                      let removedLines = 0;
-
-                                                      if (
-                                                        change.change_type ===
-                                                        "replace"
-                                                      ) {
-                                                        addedLines = newLines;
-                                                        removedLines =
-                                                          originalLines;
-                                                      } else if (
-                                                        change.change_type ===
-                                                        "append"
-                                                      ) {
-                                                        addedLines = newLines;
-                                                        removedLines = 0;
-                                                      } else if (
-                                                        change.change_type ===
-                                                          "insert" ||
-                                                        change.change_type ===
-                                                          "insert_after" ||
-                                                        change.change_type ===
-                                                          "insert_before"
-                                                      ) {
-                                                        addedLines = newLines;
-                                                        removedLines = 0;
-                                                      }
-
-                                                      return (
-                                                        <div
-                                                          key={idx}
-                                                          className="flex items-center gap-2 text-sm font-mono"
-                                                        >
-                                                          <button
-                                                            onClick={() => {
-                                                              setSelectedFile(
-                                                                change.file
-                                                              );
-                                                              setActiveTab(
-                                                                "code"
-                                                              );
-                                                            }}
-                                                            className="text-gray-700 hover:underline cursor-pointer"
-                                                          >
-                                                            {change.file}
-                                                          </button>
-                                                          {addedLines > 0 && (
-                                                            <span className="text-green-600 font-semibold">
-                                                              +{addedLines}
-                                                            </span>
-                                                          )}
-                                                          {removedLines > 0 && (
-                                                            <span className="text-red-600 font-semibold">
-                                                              -{removedLines}
-                                                            </span>
-                                                          )}
-                                                        </div>
-                                                      );
-                                                    }
-                                                  )}
-                                                </div>
-                                              </div>
-                                            )}
-                                        </>
-                                      ) : null}
-                                    </motion.div>
-                                  </div>
-                                ) : codeTabEnabled ? (
-                                  <div className="w-full max-w-3xl mx-auto text-left">
-                                    <div className="flex items-center justify-between mb-6">
-                                      <h1 className="text-3xl font-semibold text-gray-900">
-                                        Development Steps
-                                      </h1>
-                                      {isProjectComplete && (
-                                        <Button
-                                          size="sm"
-                                          className="bg-green-600 text-white hover:bg-green-700"
-                                          onClick={() =>
-                                            setShowCongratulations(true)
-                                          }
-                                        >
-                                          <FileCode
-                                            size={16}
-                                            className="mr-2"
-                                          />
-                                          Export
-                                        </Button>
-                                      )}
-                                    </div>
-                                    <div className="space-y-2">
-                                      {developmentSteps.map((step: any) => (
-                                        <div
-                                          key={step.step}
-                                          className={`p-3 rounded-lg border-2 transition-all ${
-                                            step.completed
-                                              ? "bg-green-50 border-green-300"
-                                              : "bg-white border-gray-200"
-                                          }`}
-                                        >
-                                          <div className="flex items-start gap-2.5">
-                                            {step.completed ? (
-                                              <CheckCircle2
-                                                size={20}
-                                                className="text-green-600 mt-0.5 shrink-0"
-                                              />
-                                            ) : (
-                                              <div className="w-5 h-5 rounded-full border-2 border-gray-300 mt-0.5 shrink-0" />
-                                            )}
-                                            <div className="flex-1 min-w-0">
-                                              <p
-                                                className={`text-sm font-semibold mb-0.5 ${
-                                                  step.completed
-                                                    ? "text-green-900"
-                                                    : "text-gray-900"
-                                                }`}
-                                              >
-                                                {step.step === 0
-                                                  ? step.title
-                                                  : `Step ${step.step}: ${step.title}`}
-                                              </p>
-                                              <p
-                                                className={`text-xs ${
-                                                  step.completed
-                                                    ? "text-green-700"
-                                                    : "text-gray-600"
-                                                }`}
-                                              >
-                                                {step.goal}
-                                              </p>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <>
-                                    <h1 className="text-3xl font-semibold text-gray-900 mb-2">
-                                      {questions[currentQuestionIndex].question}
-                                    </h1>
-                                    <p className="text-base text-gray-500 mb-8 max-w-2xl mx-auto">
-                                      Don't worry if you don't know something,
-                                      try to guess it.
-                                    </p>
-                                  </>
-                                )}
-                              </>
-                            )}
+                          <div className="flex-1 flex items-center justify-center p-8 overflow-y-auto">
+                            <QuizInterface
+                              quizAccepted={quizAccepted}
+                              setQuizAccepted={setQuizAccepted}
+                              questions={questions}
+                              currentQuestionIndex={currentQuestionIndex}
+                              isLoading={isLoading}
+                              showFeedback={showFeedback}
+                              evaluationResult={evaluationResult}
+                              inputValue={inputValue}
+                              setInputValue={setInputValue}
+                              setShowFeedback={setShowFeedback}
+                              setEvaluationResult={setEvaluationResult}
+                            />
+                          </div>
                         </motion.div>
                       )}
                     </AnimatePresence>
                   </div>
                   {showNextStep && (
-                    <div className="border-t border-gray-200 p-6 bg-white shrink-0">
+                    <div className="border-t border-gray-200 p-6 shrink-0">
                       <div className="max-w-3xl mx-auto">
                         <Button
                           size="lg"
@@ -1141,7 +1272,7 @@ export default function Home() {
                 </div>
 
                 {codeTabEnabled && !showNextStep && !showCongratulations ? (
-                  <div className="border-t border-gray-200 p-4 bg-white">
+                  <div className="border-t border-gray-200 p-4">
                     <div className="max-w-4xl mx-auto">
                       <Button
                         size="lg"
@@ -1159,15 +1290,16 @@ export default function Home() {
                         ) : isLastStep ? (
                           "Finish and export"
                         ) : (
-                          "Continue to next step"
+                          `Continue to Step ${currentStep + 1}`
                         )}
                       </Button>
                     </div>
                   </div>
                 ) : !showNextStep &&
                   !showCongratulations &&
-                  (!showFeedback || !evaluationResult) ? (
-                  <div className="border-t border-gray-200 p-4 bg-white">
+                  (!showFeedback || !evaluationResult) &&
+                  quizAccepted ? (
+                  <div className="border-t border-gray-200 p-4">
                     <div className="max-w-4xl mx-auto">
                       <div className="relative">
                         <Textarea
@@ -1175,15 +1307,12 @@ export default function Home() {
                           onChange={(e) => setInputValue(e.target.value)}
                           onKeyDown={handleKeyDown}
                           placeholder={
-                            !quizAccepted
-                              ? "Click Start to begin"
-                              : questions.length > 0 &&
-                                currentQuestionIndex < questions.length
+                            questions.length > 0 &&
+                            currentQuestionIndex < questions.length
                               ? "Write your answer..."
                               : "All questions completed!"
                           }
                           disabled={
-                            !quizAccepted ||
                             isLoading ||
                             (showFeedback && evaluationResult?.understood) ||
                             questions.length === 0 ||
@@ -1202,7 +1331,6 @@ export default function Home() {
                             type="button"
                             onClick={handleSubmit}
                             disabled={
-                              !quizAccepted ||
                               isLoading ||
                               showFeedback ||
                               !inputValue.trim() ||
@@ -1210,7 +1338,6 @@ export default function Home() {
                               currentQuestionIndex >= questions.length
                             }
                             className={`p-2 rounded-md transition-colors ${
-                              quizAccepted &&
                               inputValue.trim() &&
                               !isLoading &&
                               !showFeedback &&

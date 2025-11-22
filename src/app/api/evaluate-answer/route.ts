@@ -5,6 +5,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     const apiUrl = process.env.API_URL!;
+    console.log("Calling backend:", `${apiUrl}/evaluate-answer`);
+    console.log("Request body:", JSON.stringify(body, null, 2));
+
     const response = await fetch(`${apiUrl}/evaluate-answer`, {
       method: "POST",
       headers: {
@@ -13,12 +16,24 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(body),
     });
 
+    console.log("Response status:", response.status);
+
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      const errorText = await response.text();
+      console.error("Backend error response:", errorText);
+
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { error: "Unknown error", message: errorText };
+      }
+
       return NextResponse.json(
         {
           error: errorData.error || "Failed to evaluate answer",
           message: errorData.message,
+          details: errorData.detail, // Often where Pydantic/FastAPI validation errors are
         },
         { status: response.status }
       );

@@ -5,6 +5,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     const apiUrl = process.env.API_URL!;
+    console.log("Calling backend:", `${apiUrl}/next-step`);
+    console.log("Request body:", JSON.stringify(body, null, 2));
+
     const response = await fetch(`${apiUrl}/next-step`, {
       method: "POST",
       headers: {
@@ -13,12 +16,24 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(body),
     });
 
+    console.log("Response status:", response.status);
+
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      const errorText = await response.text();
+      console.error("Backend error response:", errorText);
+
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { error: "Unknown error", message: errorText };
+      }
+
       return NextResponse.json(
         {
           error: errorData.error || "Failed to generate next step",
           message: errorData.message,
+          details: errorData.detail,
         },
         { status: response.status }
       );
